@@ -1,0 +1,26 @@
+# Dependencies and builds
+node_modules/
+dist/
+server/public/app/
+
+# Environment and credentials
+.env
+.env.*
+!.env.example
+
+# Runtime data
+*.log
+server/public/images/*
+!server/public/images/.gitkeep
+
+# Local backups and agent metadata
+backups/
+.agents/
+.codex/
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp

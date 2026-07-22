@@ -1,0 +1,14 @@
+{
+  "name": "pokee-pal",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix client && npm install --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "build": "npm run build --prefix client",
+    "test": "npm test --prefix server && npm run lint --prefix client",
+    "services:up": "docker compose up -d",
+    "services:down": "docker compose down"
+  }
+}
