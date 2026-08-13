@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: pokee-pal
+    runtime: node
+    plan: free
+    buildCommand: npm run install:all && npm run build:deploy
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: DATABASE_URL
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: CACHE_ENABLED
+        value: "false"

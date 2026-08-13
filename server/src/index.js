@@ -3,10 +3,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import crypto from 'crypto';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Database } from './db.js';
 import { generateImageFromDoodle, generatePalMetadata, generateActionImage } from './ai.js';
 import cache from './cache.js';
-import { deleteImage, saveBase64Image, saveImageBuffer } from './imageStorage.js';
+import { deleteImage, readImageDataUrl, saveBase64Image, saveImageBuffer } from './imageStorage.js';
 import { applyXp, buildPortablePal, equippedMovesFor, framesFor, moveInventoryFor, normalizeStats, simulateBattle, STAT_KEYS } from './battle.js';
 import { availableMoves, createManualBattle, resolveManualRound } from './manualBattle.js';
 
@@ -15,11 +17,14 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+const serverDirectory = join(dirname(fileURLToPath(import.meta.url)), '..');
+const clientBuildDirectory = join(serverDirectory, 'public', 'app');
+const imageDirectory = join(serverDirectory, 'public', 'images');
 
 app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json({ limit: '4mb' }));
-app.use('/images', express.static('public/images'));
-app.use(express.static('public/app'));
+app.use('/images', express.static(imageDirectory));
+app.use(express.static(clientBuildDirectory));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: (_req, file, callback) => callback(null, ['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) });
 const PAL_TYPES = ['Normal', 'Fire', 'Water', 'Grass', 'Electric', 'Ice', 'Fighting', 'Poison', 'Ground', 'Flying', 'Psychic', 'Bug', 'Rock', 'Ghost', 'Dragon', 'Dark', 'Steel', 'Fairy'];
 
@@ -32,6 +37,8 @@ function validImageBytes(buffer, mime) {
 
 let db;
 try {
+  // Startup is intentionally fail-fast: no route should accept work until the
+  // database connection and idempotent schema initialization both succeed.
   db = new Database({ url: process.env.DATABASE_URL });
   await db.connect();
   await db.initialize();
@@ -87,7 +94,8 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
-// Gallery endpoint with Memcached caching
+// Gallery reads use a short cache, while every mutation below updates or
+// invalidates that key to keep PostgreSQL authoritative.
 app.get('/api/gallery', async (_req, res) => {
   try {
     const rows = await cache.getOrSet('gallery:all', () => db.list(), 300);
@@ -270,6 +278,8 @@ app.delete('/api/pokaimon/:id', async (req, res) => {
 });
 
 app.post('/api/battles/simulate', async (req, res) => {
+  // Automatic matches resolve in one request, then award progression exactly
+  // once for each ordered winner/loser matchup.
   try {
     const requested = [req.body?.left, req.body?.right];
     if (requested.some((pal) => !pal || typeof pal !== 'object')) {
@@ -400,6 +410,8 @@ app.post('/api/pokaimon/import', upload.single('image'), async (req, res) => {
 });
 
 app.post('/api/battles/manual', async (req, res) => {
+  // Manual matches persist expiring server-side sessions so move legality and
+  // rewards cannot be controlled by client state.
   try {
     const left = await resolveCombatant(req.body?.left); const right = await resolveCombatant(req.body?.right);
     if (left.cardId === right.cardId) return res.status(400).json({ error: 'Choose two different Pokee-Pals' });
@@ -469,9 +481,7 @@ app.post('/api/pokaimon/:id/action-image', async (req, res) => {
 
     const b64 = await generateActionImage(
       {
-        baseImageDataUrl: pokemon.image_url.startsWith('/images/')
-          ? `http://localhost:${PORT}${pokemon.image_url}`
-          : pokemon.image_url,
+        baseImageDataUrl: readImageDataUrl(pokemon.image_url),
         name: pokemon.name,
         type: pokemon.type,
         characteristics: pokemon.characteristics,
@@ -498,7 +508,7 @@ app.get('*', (req, res) => {
   if (req.path.startsWith('/api/') || req.path.includes('.')) {
     return res.status(404).send('Not found');
   }
-  res.sendFile('public/app/index.html', { root: '.' });
+  res.sendFile(join(clientBuildDirectory, 'index.html'));
 });
 
 app.listen(PORT, () => {

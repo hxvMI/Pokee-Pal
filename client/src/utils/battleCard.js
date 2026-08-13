@@ -1,7 +1,8 @@
+import { apiUrl } from "./api.js";
+
 const FORMAT = "pokee-pal-card";
 const VERSION = 2;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const API = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -22,6 +23,8 @@ function parseCharacteristics(value) {
 }
 
 export function normalizePortablePal(data, { imported = false } = {}) {
+  // Normalize database rows and uploaded card versions into one bounded battle
+  // model before any untrusted values reach simulation or rendering code.
   if (!data || typeof data !== "object") throw new Error("The card does not contain valid Pokee-Pal data.");
   const legacy = parseCharacteristics(data.characteristics);
   const rawStats = data.stats || legacy.stats || {};
@@ -79,6 +82,8 @@ function makeChunk(type, data) {
 }
 
 function insertMetadata(png, payload) {
+  // Portable cards remain valid PNGs: metadata is inserted before IEND so
+  // ordinary image viewers and Pokee-Pal can share the same file.
   const keyword = encoder.encode(FORMAT);
   const json = encoder.encode(JSON.stringify(payload));
   const data = new Uint8Array(keyword.length + 5 + json.length);
@@ -115,7 +120,7 @@ const loadImage = (src) => new Promise((resolve, reject) => {
   const image = new Image(); image.crossOrigin = "anonymous"; image.onload = () => resolve(image); image.onerror = () => reject(new Error("Could not load the pal image.")); image.src = src;
 });
 const canvasBlob = (canvas) => new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Could not create the PNG.")), "image/png"));
-const getImageSource = (pal) => pal.imageData || (pal.imageUrl?.startsWith("/") ? `${API}${pal.imageUrl}` : pal.imageUrl);
+const getImageSource = (pal) => pal.imageData || (pal.imageUrl?.startsWith("/") ? apiUrl(pal.imageUrl) : pal.imageUrl);
 
 export async function exportBattleCard(input) {
   const pal = normalizePortablePal(input, { imported: input.imported });

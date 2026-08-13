@@ -27,7 +27,8 @@ export function ThemeProvider({ children }) {
   );
 }
 
-// The workshop keeps the provider and its companion hook together for clarity.
+// Keep the provider and companion hook together so theme persistence and the
+// public context contract cannot drift apart.
 // eslint-disable-next-line react-refresh/only-export-components
 export function useTheme() {
   const context = useContext(ThemeContext);

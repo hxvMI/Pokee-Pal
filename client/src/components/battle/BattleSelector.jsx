@@ -1,9 +1,9 @@
-const API = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+import { apiUrl } from "../../utils/api.js";
 
 function imageFor(pal) {
   if (pal.imageData) return pal.imageData;
   const path = pal.image_url || pal.imageUrl || "";
-  return path.startsWith("/") ? `${API}${path}` : path;
+  return path.startsWith("/") ? apiUrl(path) : path;
 }
 
 export default function BattleSelector({ label, pals, selectedId, excludedId, onChange, selectedPal, onUpload, uploadError }) {

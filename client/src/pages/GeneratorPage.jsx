@@ -4,10 +4,11 @@ import Spinner from "../components/Spinner.jsx";
 import CreatureDetails from "../components/CreatureDetails.jsx";
 import { useCloudflareCredentials } from "../context/CloudflareCredentialsContext.jsx";
 import ImportPal from "../components/ImportPal.jsx";
-
-const API = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+import { apiUrl } from "../utils/api.js";
 
 export default function GeneratorPage() {
+  // This route coordinates the doodle -> AI -> persisted card workflow and
+  // keeps the latest result editable without forcing a gallery round trip.
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
   const [lastResult, setLastResult] = useState(null);
@@ -23,7 +24,7 @@ export default function GeneratorPage() {
       if (!accountId || !apiToken) {
         throw new Error("Save your Cloudflare Account ID and API token first.");
       }
-      const res = await fetch(`${API}/api/generate`, {
+      const res = await fetch(apiUrl("/api/generate"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -48,7 +49,7 @@ export default function GeneratorPage() {
     if (!lastResult?.id) return;
     try {
       setIsRenaming(true); setError(null);
-      const res = await fetch(`${API}/api/pokaimon/${lastResult.id}/name`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nameDraft }) });
+      const res = await fetch(apiUrl(`/api/pokaimon/${lastResult.id}/name`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nameDraft }) });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to rename Pokee-Pal");
       setLastResult(json); setNameDraft(json.name); setIsEditingName(false);
@@ -98,7 +99,7 @@ export default function GeneratorPage() {
             {isGenerating && <Spinner label="Bringing your Pokee-Pal to life…" />}
             {lastResult && !isGenerating && (
               <img
-                src={`${API}${lastResult.image_url}`}
+                src={apiUrl(lastResult.image_url)}
                 alt={lastResult.name}
                 className="h-full w-full rounded-xl object-contain"
               />

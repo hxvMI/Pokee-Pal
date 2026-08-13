@@ -247,6 +247,8 @@ export function framesFor(pal) {
 export const xpForNextLevel = (level) => 100 * clampInt(level, 1, 100, 1);
 
 export function buildPortablePal(pal, { imported = false } = {}) {
+  // Collapse database rows, generated objects, and uploaded cards into the same
+  // versioned representation consumed by both battle modes and card exports.
   const legacy = parseLegacyCharacteristics(pal.characteristics);
   const stats = normalizeStats(pal.stats || legacy.stats);
   const cardId = String(pal.card_id || pal.cardId || crypto.randomUUID());
@@ -277,6 +279,8 @@ function seededRandom(seed) {
 }
 
 export function simulateBattle(leftInput, rightInput, seed = crypto.randomInt(1, 2147483647)) {
+  // Seeded randomness makes a completed match reproducible for tests and battle
+  // records while still producing varied encounters for normal requests.
   const left = buildPortablePal(leftInput, { imported: !leftInput.id });
   const right = buildPortablePal(rightInput, { imported: !rightInput.id });
   const random = seededRandom(seed);
@@ -372,6 +376,8 @@ export function simulateBattle(leftInput, rightInput, seed = crypto.randomInt(1,
 }
 
 export function applyXp(pal, amount = 50) {
+  // Progress one level at a time so unlocks and unspent stat awards remain
+  // correct when a future reward crosses multiple thresholds.
   const updated = { ...pal };
   if (updated.level >= MAX_LEVEL) return { pal: { ...updated, xp: 0, unlockedMoves: moveInventoryFor(updated), unlockedFrames: framesFor(updated) }, levelsGained: 0 };
   updated.xp = pal.xp + amount;

@@ -58,6 +58,19 @@ export function saveImageBuffer(buffer, mimeType = 'image/png', prefix = 'import
   return `/images/${filename}`;
 }
 
+// Action-image generation needs the original bytes. Reading them directly
+// avoids routing an internal production request through a localhost URL.
+export function readImageDataUrl(imageUrl) {
+  if (!imageUrl || !imageUrl.startsWith('/images/')) return imageUrl;
+  const filename = path.basename(imageUrl);
+  const extension = path.extname(filename).toLowerCase();
+  const mimeTypes = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
+  const mimeType = mimeTypes[extension];
+  if (!mimeType) throw new Error('Unsupported stored image type');
+  const buffer = fs.readFileSync(path.join(IMAGES_DIR, filename));
+  return `data:${mimeType};base64,${buffer.toString('base64')}`;
+}
+
 /**
  * Delete an image file
  * @param {string} imageUrl - URL path to the image (e.g., '/images/pokemon-123.png')

@@ -1,20 +1,14 @@
-// ⏸️ WORKSHOP STEP 3: Fetch Data with useEffect
-// TODO: Import useState and useEffect
-// TODO: Import useMemo from 'react' for Step 6
 import Spinner from "../components/Spinner.jsx";
 import { useState, useMemo } from "react";
 import { usePalGallery } from "../hooks/usePalGallery.js";
 import CreatureDetails from "../components/CreatureDetails.jsx";
 import { Link } from "react-router-dom";
-
-const API = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+import { apiUrl } from "../utils/api.js";
 
 export default function GalleryPage() {
-  // ⏸️ WORKSHOP STEP 4: Use Custom Hook
+  // Gallery state comes from the shared hook; derived sorting and filtering
+  // remain local so server data stays canonical after mutations.
   const { data, loading, error, setData } = usePalGallery();
-
-  // ⏸️ WORKSHOP STEP 6: Add useMemo for Sorting
-  // TODO: Add state for sortBy and filterType
   const [sortBy, setSortBy] = useState("newest");
   const [filterType, setFilterType] = useState("all");
   const [editingId, setEditingId] = useState(null);
@@ -22,8 +16,6 @@ export default function GalleryPage() {
   const [renameError, setRenameError] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  // TODO: Implement useMemo to process and filter data
-
   const processedData = useMemo(() => {
     let result = [...data];
 
@@ -56,7 +48,7 @@ export default function GalleryPage() {
 
   const like = async (id) => {
     try {
-      const res = await fetch(`${API}/api/pokaimon/${id}/like`, {
+      const res = await fetch(apiUrl(`/api/pokaimon/${id}/like`), {
         method: "PATCH",
       });
       if (!res.ok) throw new Error("Failed to like");
@@ -71,7 +63,7 @@ export default function GalleryPage() {
   const removePal = async (pal) => {
     try {
       setDeletingId(pal.id);
-      const res = await fetch(`${API}/api/pokaimon/${pal.id}`, { method: "DELETE" });
+      const res = await fetch(apiUrl(`/api/pokaimon/${pal.id}`), { method: "DELETE" });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || "Failed to delete");
       setData(data.filter((item) => item.id !== pal.id));
@@ -84,7 +76,7 @@ export default function GalleryPage() {
   const rename = async (id) => {
     try {
       setRenameError("");
-      const res = await fetch(`${API}/api/pokaimon/${id}/name`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nameDraft }) });
+      const res = await fetch(apiUrl(`/api/pokaimon/${id}/name`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nameDraft }) });
       const updated = await res.json();
       if (!res.ok) throw new Error(updated.error || "Failed to rename");
       setData(data.map((pal) => pal.id === id ? { ...pal, ...updated, attacks: pal.attacks } : pal));
@@ -120,8 +112,6 @@ export default function GalleryPage() {
           </div>
         </div>
 
-        {/* ⏸️ WORKSHOP STEP 6: Add Sort and Filter Controls */}
-        {/* TODO: Add select dropdowns for sorting and filtering */}
         <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-end">
           <label className="flex min-w-44 flex-col gap-1.5 text-left">
             <span className="pl-1 text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -172,7 +162,7 @@ export default function GalleryPage() {
   processedData.map((p) => (
     <div key={p.id} className="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
       <img
-        src={`${API}${p.image_url}`}
+        src={apiUrl(p.image_url)}
         alt={p.name}
         className="w-full aspect-square object-contain"
       />

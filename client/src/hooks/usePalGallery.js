@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-
-const API = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+import { apiUrl } from "../utils/api.js";
 
 export function usePalGallery() {
+  // A stable refetch callback lets route components refresh the shared gallery
+  // contract after battle progression or customization mutations.
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,7 +12,7 @@ export function usePalGallery() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`${API}/api/gallery`);
+      const response = await fetch(apiUrl("/api/gallery"));
       if (!response.ok) throw new Error("Failed to load gallery");
       setData(await response.json());
     } catch (failure) {

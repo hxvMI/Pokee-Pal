@@ -7,6 +7,8 @@ function randomFor(state) {
 }
 
 export function availableMoves(state, fighterIndex) {
+  // Availability is derived from persisted uses and cooldowns; the client only
+  // receives legal choices and never decides whether a move can execute.
   const fighter = state.fighters[fighterIndex];
   return fighter.pal.attacks.map((move) => ({
     ...move,
@@ -28,6 +30,8 @@ function snapshot(state) {
 }
 
 function perform(state, attackerIndex, defenderIndex, move) {
+  // Mutate the round's server-owned state in a fixed order so damage, healing,
+  // reflection, cooldowns, and the event log describe the same outcome.
   const attacker = state.fighters[attackerIndex];
   const defender = state.fighters[defenderIndex];
   if (attacker.hp <= 0) return;
@@ -67,11 +71,15 @@ function perform(state, attackerIndex, defenderIndex, move) {
 }
 
 export function createManualBattle(leftInput, rightInput, seed = crypto.randomInt(1, 2147483647)) {
+  // Manual battles store normalized snapshots, preventing gallery edits from
+  // changing combatants halfway through an active session.
   const pals = [buildPortablePal(leftInput, { imported: !leftInput.id }), buildPortablePal(rightInput, { imported: !rightInput.id })];
   return { mode: 'manual', seed, randomState: seed, round: 1, status: 'active', log: [], fighters: pals.map((pal) => ({ pal, hp: pal.stats.health, shield: 0, reflect: 0, uses: {}, cooldowns: {} })) };
 }
 
 export function resolveManualRound(state, moveName) {
+  // Resolve the player's selected move and the AI response atomically; callers
+  // persist the returned state before accepting the next action.
   if (state.status !== 'active') throw new Error('Battle is already complete');
   const playerMove = availableMoves(state, 0).find((move) => move.name === moveName);
   if (!playerMove) throw new Error('That move is unavailable, exhausted, or cooling down');

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-
-const API = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+import { apiUrl } from "../utils/api.js";
 const TYPES = ["Normal", "Fire", "Water", "Grass", "Electric", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"];
 
 export default function ImportPal() {
@@ -10,7 +9,7 @@ export default function ImportPal() {
     event.preventDefault(); setWorking(true); setStatus("");
     try {
       const body = new FormData(); body.append("image", file); body.append("name", name); body.append("type", secondary && secondary !== primary ? `${primary}/${secondary}` : primary); body.append("description", description);
-      const response = await fetch(`${API}/api/pokaimon/import`, { method: "POST", body }); const result = await response.json();
+      const response = await fetch(apiUrl("/api/pokaimon/import"), { method: "POST", body }); const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Import failed");
       setStatus(`${result.name} joined the Gallery with randomized stats and moves.`); setFile(null); setName(""); setDescription("");
     } catch (error) { setStatus(error.message); } finally { setWorking(false); }

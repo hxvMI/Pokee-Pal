@@ -3,6 +3,8 @@ import { createContext, useContext, useState } from "react";
 const CloudflareCredentialsContext = createContext(null);
 
 export function CloudflareCredentialsProvider({ children }) {
+  // Session storage intentionally keeps user-supplied credentials temporary;
+  // server environment credentials remain the safer production configuration.
   const [accountId, setAccountId] = useState(
     () => sessionStorage.getItem("CLOUDFLARE_ACCOUNT_ID") || "",
   );

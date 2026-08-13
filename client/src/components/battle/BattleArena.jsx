@@ -1,5 +1,6 @@
-const API = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
-const imageFor = (pal) => pal?.imageData || (pal?.imageUrl?.startsWith("/") ? `${API}${pal.imageUrl}` : pal?.imageUrl) || `${API}${pal?.image_url || ""}`;
+import { apiUrl } from "../../utils/api.js";
+
+const imageFor = (pal) => pal?.imageData || (pal?.imageUrl?.startsWith("/") ? apiUrl(pal.imageUrl) : pal?.imageUrl) || apiUrl(pal?.image_url || "");
 
 function Fighter({ pal, turns }) {
   const latest = turns[turns.length - 1];
