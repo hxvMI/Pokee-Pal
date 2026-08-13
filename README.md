@@ -278,6 +278,27 @@ The checked-in `render.yaml` defines one free Render Node web service. Its build
 
 No separate migration command is required: the server initializes its schema before listening. Render's free instances can restart or spin down, so first requests may be slow and runtime disk contents are not durable.
 
+### Render deployment troubleshooting
+
+If the homepage opens but navigation reports `Failed to fetch dynamically imported module`, the deployed `index.html` is referencing a hashed Vite asset that was not copied into Express's public directory. In the Render service's **Settings > Build & Deploy** page, verify these exact settings:
+
+```text
+Root Directory:  leave blank
+Build Command:   npm run install:all && npm run build:deploy
+Start Command:   npm start
+```
+
+Do not set `PORT`; Render supplies it at runtime. Leave `VITE_BACKEND_URL` unset so the client uses the same Render origin for API and image requests.
+
+After correcting a build setting, choose **Manual Deploy > Clear build cache & deploy**. A successful build log should include:
+
+```text
+Building Pokee-Pal client...
+Pokee-Pal client deployed to .../server/public/app
+```
+
+Once the deployment finishes, perform a hard refresh (`Ctrl+Shift+R`) or open the site in a private window to discard references to chunks from an older deployment. If the error remains, verify that the build log ran `build:deploy`, not only the root `build` command.
+
 ### Generated-image storage limitation
 
 Generated and imported images are currently written to `server/public/images`. This is local runtime filesystem storage and is ephemeral on a free Render web service: database rows can survive in Neon while their corresponding image files disappear after a restart or redeploy. Treat the current deployment as a demo until image storage moves to a persistent object service such as Cloudflare R2, Amazon S3, or Supabase Storage.
