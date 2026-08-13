@@ -6,9 +6,19 @@ Pokee-Pal is a full-stack creature-card game that turns a doodle—or an existin
 
 > Built as a portfolio project focused on generative AI, portable user-created content, deterministic game systems, persistent progression, and a production-ready React/Express architecture.
 
+## Live demo
+
+Explore the deployed application at **[pokee-pal.onrender.com](https://pokee-pal.onrender.com/)**.
+
+> The demo runs on Render's free tier and may take up to a minute to wake after a period without traffic. Generated and uploaded images use ephemeral local storage and can disappear after a restart or redeploy; see the [deployment limitation](#generated-image-storage-limitation) below.
+
 ## Screenshots
 
-Screenshots are not checked into the repository yet. After starting the app, capture the responsive Generator, Gallery, Battle, and Customize routes and place them in `docs/screenshots/` using `generator.png`, `gallery.png`, `battle.png`, and `customize.png`. This keeps the portfolio page honest while leaving a ready-made showcase checklist.
+| Pokee-Pal Generator | Gallery |
+| --- | --- |
+| ![Pokee-Pal Generator page](docs/screenshots/generator.png) | ![Pokee-Pal Gallery page](docs/screenshots/gallery.png) |
+
+The screenshots were captured from the deployed responsive desktop interface. The live demo also includes dedicated Battle and Customize routes.
 
 ## Features
 
