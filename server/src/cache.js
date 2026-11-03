@@ -1,3 +1,6 @@
+// Optional gallery cache. Misses, connection errors, and disabled caching allow
+// callers to read PostgreSQL instead; cached values never replace durable storage.
+
 import Memcached from 'memcached';
 
 const MEMCACHED_SERVERS = process.env.MEMCACHED_SERVERS || 'localhost:11211';

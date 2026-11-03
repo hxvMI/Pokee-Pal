@@ -1,3 +1,5 @@
+# Request monthly dependency updates separately for the client, server, and CI actions.
+
 version: 2
 updates:
   - package-ecosystem: npm

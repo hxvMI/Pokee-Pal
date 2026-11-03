@@ -1,3 +1,6 @@
+// Share user-entered AI credentials within the app and the current browser session.
+// These values remain accessible to page JavaScript; session storage is not encryption.
+
 import { createContext, useContext, useState } from "react";
 
 const CloudflareCredentialsContext = createContext(null);

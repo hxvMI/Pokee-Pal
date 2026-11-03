@@ -1,3 +1,6 @@
+// Adapt application requests to Cloudflare image and text inference APIs.
+// Image generation returns base64 bytes; text generation returns parsed creature metadata.
+
 const IMAGE_MODEL = '@cf/black-forest-labs/flux-2-klein-4b'
 const TEXT_MODEL = '@cf/meta/llama-3.1-8b-instruct'
 const ALLOWED_TYPES = [
@@ -14,6 +17,7 @@ const STYLE_PROMPTS = {
   watercolor: 'Use a hand-painted watercolor storybook style with textured paper, soft pigment blooms, and delicate ink accents.',
 }
 
+// Request-specific credentials take precedence over server environment settings.
 function getCloudflareConfig(overrides = {}) {
   const accountId = overrides.accountId || process.env.CLOUDFLARE_ACCOUNT_ID
   const apiToken = overrides.apiToken || process.env.CLOUDFLARE_API_TOKEN
@@ -23,6 +27,7 @@ function getCloudflareConfig(overrides = {}) {
   return { accountId, apiToken }
 }
 
+// Send either multipart image input or JSON text input, and report upstream failures.
 async function runModel(model, input, credentials) {
   const { accountId, apiToken } = getCloudflareConfig(credentials)
   const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`
@@ -45,6 +50,8 @@ async function runModel(model, input, credentials) {
   return response
 }
 
+// The image endpoint can return JSON-wrapped base64 or raw image bytes.
+// Normalize both response shapes to base64 for the storage layer.
 async function generateImage({ prompt, imageBase64, width = 496, height = 496, guidance = 4 }, credentials) {
   const form = new FormData()
   form.append('prompt', prompt)
@@ -87,6 +94,8 @@ async function loadImageBase64(source) {
   return null
 }
 
+// Remove optional Markdown fences and surrounding text before parsing the object.
+// Parsing checks JSON syntax; the API still needs to normalize the resulting fields.
 function parseJsonResponse(text) {
   if (text && typeof text === 'object' && !Array.isArray(text)) return text
   if (typeof text !== 'string') {
@@ -142,6 +151,8 @@ export async function generatePalMetadata(promptText, credentials, style = 'cute
   try {
     return parseJsonResponse(text)
   } catch (parseError) {
+    // If the initial text is malformed, make one low-temperature repair request.
+    // A second parsing failure is allowed to propagate to the route error handler.
     const repairResponse = await runModel(TEXT_MODEL, {
       messages: [
         { role: 'system', content: 'Repair malformed JSON. Return only one valid JSON object, preserving the original meaning and required fields.' },
@@ -157,6 +168,7 @@ export async function generatePalMetadata(promptText, credentials, style = 'cute
   }
 }
 
+// Use the original artwork as a reference to preserve the creature in a new action scene.
 export async function generateActionImage({ baseImageDataUrl, name, type, characteristics }, power, credentials) {
   const base64Img = await loadImageBase64(baseImageDataUrl)
   if (!base64Img) throw new Error('A base creature image is required for an action image')

@@ -1,3 +1,6 @@
+// Share the selected theme across screens and persist it between browser visits.
+// The root data-theme attribute selects the CSS variables in index.css.
+
 import { createContext, useContext, useState, useEffect } from "react";
 
 const ThemeContext = createContext(null);
@@ -15,6 +18,7 @@ export function ThemeProvider({ children }) {
     return THEME_OPTIONS.some((option) => option.value === saved) ? saved : "cottage";
   });
 
+  // Keep persistence and the CSS selector in sync whenever the theme changes.
   useEffect(() => {
     localStorage.setItem("theme", theme);
     document.documentElement.setAttribute("data-theme", theme);

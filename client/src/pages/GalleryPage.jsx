@@ -1,3 +1,6 @@
+// Display saved creatures with local sorting, type filtering, and editing controls.
+// Mutation handlers update the visible collection after successful API responses.
+
 import Spinner from "../components/Spinner.jsx";
 import { useState, useMemo } from "react";
 import { usePalGallery } from "../hooks/usePalGallery.js";
@@ -16,6 +19,8 @@ export default function GalleryPage() {
   const [renameError, setRenameError] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  // Copy the collection before sorting so display changes do not mutate hook state.
+  // The default order is the newest-first order returned by the API.
   const processedData = useMemo(() => {
     let result = [...data];
 
@@ -40,6 +45,7 @@ export default function GalleryPage() {
     return result;
   }, [data, sortBy, filterType]);
 
+  // Split dual types into individual options and remove duplicate entries.
   const availableTypes = useMemo(() => {
     const types = new Set(data.flatMap((p) => String(p.type || "").split("/"))
       .map((type) => type.trim()).filter(Boolean));
@@ -60,6 +66,7 @@ export default function GalleryPage() {
     }
   };
 
+  // Remove a card from local state only after the server confirms deletion.
   const removePal = async (pal) => {
     try {
       setDeletingId(pal.id);

@@ -1,3 +1,6 @@
+// Check browser JavaScript and JSX with recommended JavaScript, React Hooks,
+// and Vite refresh rules. Generated build output is excluded from linting.
+
 import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'

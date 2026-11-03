@@ -1,3 +1,6 @@
+// Coordinate combatant selection, uploaded cards, and both battle modes.
+// Automatic logs are revealed over time; manual play requests one server round at a time.
+
 import { useEffect, useMemo, useState } from "react";
 import { usePalGallery } from "../hooks/usePalGallery.js";
 import BattleSelector from "../components/battle/BattleSelector.jsx";
@@ -28,6 +31,8 @@ export default function BattlePage() {
   const [manualMoves, setManualMoves] = useState([]);
   const [manualWorking, setManualWorking] = useState(false);
 
+  // Normalize gallery rows and uploaded cards into the same display model.
+  // An uploaded card takes precedence over the corresponding gallery selection.
   const leftPal = useMemo(() => leftUpload || (pals.find((pal) => pal.id === Number(leftPalId)) ? normalizePortablePal(pals.find((pal) => pal.id === Number(leftPalId))) : null), [leftUpload, leftPalId, pals]);
   const rightPal = useMemo(() => rightUpload || (pals.find((pal) => pal.id === Number(rightPalId)) ? normalizePortablePal(pals.find((pal) => pal.id === Number(rightPalId))) : null), [rightUpload, rightPalId, pals]);
   const canBattle = leftPal && rightPal && leftPal.cardId !== rightPal.cardId && !running;
@@ -54,6 +59,8 @@ export default function BattlePage() {
     }
   }
 
+  // Send only IDs for saved creatures so the server reloads their current data.
+  // Shared cards need their full payload because they have no local database row.
   async function startBattle() {
     if (!canBattle) return;
     setBattleError(""); setResult(null); setVisibleTurnCount(0);
@@ -67,6 +74,8 @@ export default function BattlePage() {
     } catch (requestError) { setBattleError(requestError.message); }
   }
 
+  // Send the move name rather than a client-calculated outcome; the server
+  // returns the updated round state and the next set of legal moves.
   async function playManualMove(move) {
     setManualWorking(true); setBattleError("");
     try {
@@ -77,6 +86,8 @@ export default function BattlePage() {
     } catch (moveError) { setBattleError(moveError.message); } finally { setManualWorking(false); }
   }
 
+  // Persist gallery progression through the API. Shared cards are updated in
+  // browser state and can be exported again with their new stats.
   async function saveAllocation(allocations) {
     if (!result?.winner) return;
     setSavingStats(true); setBattleError("");

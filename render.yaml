@@ -1,3 +1,6 @@
+# Deploy the API and built React frontend as one Render service.
+# Secret values are supplied in Render; the build script places client assets under Express.
+
 services:
   - type: web
     name: pokee-pal

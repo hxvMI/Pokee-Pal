@@ -1,5 +1,9 @@
+// Choose a gallery pal or upload a portable PNG for one side of a battle.
+// The parent owns selection state and import errors; this component presents those values.
+
 import { apiUrl } from "../../utils/api.js";
 
+// Imported object URLs take priority; stored relative paths use the configured API origin.
 function imageFor(pal) {
   if (pal.imageData) return pal.imageData;
   const path = pal.image_url || pal.imageUrl || "";

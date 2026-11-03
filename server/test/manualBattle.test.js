@@ -1,3 +1,6 @@
+// Exercise interactive round resolution and progression using in-memory fixtures.
+// Fixed seeds make the selected actions and resulting state repeatable.
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyXp, buildPortablePal, moveInventoryFor } from '../src/battle.js';

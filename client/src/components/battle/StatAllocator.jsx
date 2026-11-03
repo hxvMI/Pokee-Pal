@@ -1,3 +1,6 @@
+// Stage stat increases locally before submitting them through onSave.
+// Remaining points guide the UI; persisted allocations are validated by the server.
+
 import { useState } from "react";
 
 const KEYS = ["attack", "defense", "health", "speed"];

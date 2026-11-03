@@ -1,3 +1,6 @@
+-- Bootstrap the original creature table when a new Docker database is created.
+-- The server Database.initialize method adds newer progression and battle fields at startup.
+
 -- Schema for generated_pokaimon table
 CREATE TABLE IF NOT EXISTS generated_pokaimon (
   id SERIAL PRIMARY KEY,

@@ -1,3 +1,6 @@
+// PostgreSQL persistence for creatures, progression, battle records, and sessions.
+// Parameterized query values keep user data separate from SQL; JSONB holds structured fields.
+
 import { URL } from 'url';
 import pkg from 'pg';
 import crypto from 'crypto';
@@ -10,6 +13,7 @@ export class Database {
       throw new Error('DATABASE_URL is required');
     }
     this.url = url;
+    // Reuse database connections instead of creating a new connection for every request.
     this.pool = new Pool({
       connectionString: this.url,
     });
@@ -121,6 +125,8 @@ export class Database {
     return result.rows[0] || null
   }
 
+  // Update references to the old name in descriptions as well as the display name.
+  // Escape regex characters so a creature name is treated as literal text.
   async rename(id, name) {
     const current = await this.pool.query('SELECT * FROM generated_pokaimon WHERE id = $1', [id]);
     const pal = current.rows[0];
@@ -155,11 +161,14 @@ export class Database {
     return result.rows[0] || null;
   }
 
+  // Look for an earlier rewarded win in this direction; reversing the winner and
+  // loser is a different matchup. The route uses this result to suppress repeat XP.
   async hasAwardedWin(winnerFingerprint, loserFingerprint) {
     const result = await this.pool.query(`SELECT 1 FROM battle_results WHERE winner_fingerprint = $1 AND loser_fingerprint = $2 AND xp_awarded > 0 LIMIT 1`, [winnerFingerprint, loserFingerprint]);
     return result.rowCount > 0;
   }
 
+  // Save combatant snapshots and the seed alongside the log for later inspection.
   async recordBattle({ winnerFingerprint, loserFingerprint, winner, loser, seed, log, xpAwarded }) {
     await this.pool.query(`INSERT INTO battle_results (winner_fingerprint, loser_fingerprint, winner_snapshot, loser_snapshot, seed, battle_log, xp_awarded) VALUES ($1,$2,$3::jsonb,$4::jsonb,$5,$6::jsonb,$7)`, [winnerFingerprint, loserFingerprint, JSON.stringify(winner), JSON.stringify(loser), seed, JSON.stringify(log), xpAwarded]);
   }
@@ -169,6 +178,7 @@ export class Database {
     return result.rows[0] || null;
   }
 
+  // Keep evolution eligibility in the UPDATE condition as well as in route validation.
   async evolve(id) {
     const result = await this.pool.query(`UPDATE generated_pokaimon SET star_level=star_level+1, level=1, xp=0 WHERE id=$1 AND level=5 AND star_level<5 RETURNING *`, [id]);
     return result.rows[0] || null;
@@ -205,11 +215,14 @@ export class Database {
     return result.rows[0] || null;
   }
 
+  // Ignore expired sessions when deciding whether a creature can change its loadout.
   async hasActiveSession(cardId) {
     const result = await this.pool.query(`SELECT 1 FROM battle_sessions WHERE status='active' AND expires_at>NOW() AND state::text LIKE $1 LIMIT 1`, [`%${cardId}%`]);
     return result.rowCount > 0;
   }
 
+  // Use one connection and a transaction for the balance check and stat update.
+  // The row lock prevents concurrent allocations from spending the same points.
   async allocateStats(id, allocations) {
     const client = await this.pool.connect();
     try {
@@ -222,12 +235,14 @@ export class Database {
       const stats = normalizeStats(pal.stats);
       const statCeiling = 125 + Math.max(1, Math.min(5, pal.star_level || 1)) * 25;
       for (const [key, value] of Object.entries(allocations)) stats[key] = Math.max(stats[key], Math.min(statCeiling, stats[key] + value));
+      // Charge only the increase actually applied, because a stat may hit its ceiling.
       const spent = Object.keys(stats).reduce((sum, key) => sum + (stats[key] - normalizeStats(pal.stats)[key]), 0);
       const result = await client.query('UPDATE generated_pokaimon SET stats=$2::jsonb, unspent_stat_points=unspent_stat_points-$3 WHERE id=$1 RETURNING *', [id, JSON.stringify(stats), spent]);
       await client.query('COMMIT'); return result.rows[0];
     } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
   }
 
+  // Update one power-to-image entry inside JSONB without replacing the entire map.
   async setActionImage(id, powerName, imageUrl) {
     const result = await this.pool.query(
       `UPDATE generated_pokaimon

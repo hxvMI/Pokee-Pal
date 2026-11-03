@@ -1,3 +1,6 @@
+// Regression tests for normalization, seeded combat, progression, and move rules.
+// Small fixed creatures and explicit seeds make failures repeatable without a database or AI.
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyXp, buildPortablePal, evasionChance, normalizeAttacks, normalizeStats, simulateBattle, typeEffectiveness } from '../src/battle.js';

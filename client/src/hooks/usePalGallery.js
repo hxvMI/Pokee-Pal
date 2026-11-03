@@ -1,3 +1,6 @@
+// Own the gallery request lifecycle: data, loading state, errors, and refresh.
+// Each caller gets its own hook state; this is shared logic, not a global cache.
+
 import { useCallback, useEffect, useState } from "react";
 import { apiUrl } from "../utils/api.js";
 

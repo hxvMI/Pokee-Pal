@@ -1,3 +1,6 @@
+// Upload existing artwork as a new gallery creature without AI generation.
+// This form submits image bytes and user details, rather than reading portable-card metadata.
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { apiUrl } from "../utils/api.js";
@@ -8,6 +11,8 @@ export default function ImportPal() {
   async function submit(event) {
     event.preventDefault(); setWorking(true); setStatus("");
     try {
+      // Use multipart form data for binary image upload. The browser supplies the
+      // Content-Type boundary, so no manual Content-Type header is needed.
       const body = new FormData(); body.append("image", file); body.append("name", name); body.append("type", secondary && secondary !== primary ? `${primary}/${secondary}` : primary); body.append("description", description);
       const response = await fetch(apiUrl("/api/pokaimon/import"), { method: "POST", body }); const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Import failed");

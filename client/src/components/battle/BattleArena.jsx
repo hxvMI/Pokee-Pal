@@ -1,8 +1,13 @@
+// Display both combatants using health snapshots from the visible battle log.
+// This view follows resolved events; it does not calculate combat outcomes.
+
 import { apiUrl } from "../../utils/api.js";
 
 const imageFor = (pal) => pal?.imageData || (pal?.imageUrl?.startsWith("/") ? apiUrl(pal.imageUrl) : pal?.imageUrl) || apiUrl(pal?.image_url || "");
 
 function Fighter({ pal, turns }) {
+  // Read health from the latest revealed event so the bars follow the log animation.
+  // Before any events are visible, each creature starts at its maximum health.
   const latest = turns[turns.length - 1];
   const health = latest?.health?.[pal.cardId] ?? pal.stats.health;
   return <div className="min-w-0 text-center"><img src={imageFor(pal)} alt={pal.name} className="mx-auto aspect-square w-full max-w-52 rounded-3xl object-contain" style={{ background: "var(--surface-soft)" }} /><h2 className="cozy-heading mt-3 truncate text-xl font-bold">{pal.name}</h2><p className="cozy-muted text-xs">Level {pal.level}</p><div className="stat-track mx-auto mt-2 h-3 max-w-56 overflow-hidden rounded-full"><div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${Math.max(0, health / pal.stats.health * 100)}%` }} /></div><p className="cozy-muted mt-1 text-xs">{health} / {pal.stats.health} HP</p></div>;

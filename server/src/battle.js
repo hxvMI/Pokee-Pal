@@ -1,3 +1,6 @@
+// Shared server game rules: normalize creatures, derive unlocks, simulate automatic
+// battles, and calculate progression. Database writes belong to the API and database modules.
+
 import crypto from 'crypto';
 
 export const STAT_KEYS = ['attack', 'defense', 'health', 'speed'];
@@ -46,6 +49,8 @@ const TYPE_MOVE_WORDS = {
   Bug: ['Antenna Zap', 'Cocoon Roll', 'Swarm Shuffle'],
 };
 
+// Each entry is a damage multiplier against a defending type.
+// Missing matchups are neutral; zero represents immunity.
 const TYPE_CHART = {
   Normal: { Rock: 0.5, Ghost: 0, Steel: 0.5 },
   Fire: { Fire: 0.5, Water: 0.5, Grass: 2, Ice: 2, Rock: 0.5, Dragon: 0.5, Steel: 2 },
@@ -69,6 +74,7 @@ const canonicalType = (value) => {
   return Object.keys(TYPE_CHART).find((type) => type.toLowerCase() === text) || 'Normal';
 };
 
+// Multiply the matchups for both defensive types, allowing combined strengths and weaknesses.
 export function typeEffectiveness(attackType, defenderType) {
   const attacking = canonicalType(attackType);
   return String(defenderType || 'Normal').split('/').map(canonicalType)
@@ -90,6 +96,8 @@ function moveTier(power, maxUses) {
   return 'light';
 }
 
+// Map raw move power into narrower tier ranges so large imported values do not
+// translate directly into equally large damage increases.
 function balancedAttackPower(move) {
   if (move.name === 'Last-Ditch Doodle') return 32;
   const tier = move.tier || moveTier(move.power, move.maxUses);
@@ -130,10 +138,13 @@ export function parseLegacyCharacteristics(value) {
   }
 }
 
+// Bound every supported stat and supply defaults for missing or invalid numbers.
 export function normalizeStats(value, fallback = DEFAULT_STATS) {
   return Object.fromEntries(STAT_KEYS.map((key) => [key, clampInt(value?.[key], 1, 250, fallback[key])]));
 }
 
+// Build a predictable move shape with bounded effects and a fallback attack.
+// Attack uses are derived from power; support uses are bounded separately.
 export function normalizeAttacks(value) {
   const attacks = Array.isArray(value) ? value : [];
   const normalized = attacks.slice(0, 40).map((attack, index) => {
@@ -165,6 +176,8 @@ export function normalizeAttacks(value) {
   return normalized.length ? normalized : normalizeAttacks([{ name: 'Doodle Dash', description: 'Rushes ahead in a precise trail of ink.', power: 48, accuracy: 100, unlockLevel: 1 }]);
 }
 
+// Construct the starting four-move kit using the creature identity as a seed.
+// Include the required guard and fill the remaining slots from attacks and support moves.
 export function unlockedAttacksFor(pal) {
   const primaryType = canonicalType(String(pal.type || 'Normal').split('/')[0]);
   const stored = pal.attacks || pal.unlocked_attacks;
@@ -203,6 +216,8 @@ function progressionMove(type, star, level) {
   return { ...move, description: `${move.name} is a stronger ${type.toLowerCase()} technique earned at star ${star}, level ${level}.`, type, unlockLevel: level, unlockStar: star, cooldown: move.cooldown || 0 };
 }
 
+// Combine stored moves, starting moves, and rewards earned across star levels.
+// Deduplicate by name so rebuilding the inventory does not repeat the same unlock.
 export function moveInventoryFor(pal) {
   const type = canonicalType(String(pal.type || 'Normal').split('/')[0]);
   const starLevel = clampInt(pal.star_level ?? pal.starLevel, 1, MAX_STARS, 1);
@@ -218,6 +233,8 @@ export function moveInventoryFor(pal) {
   return [...new Map([...stored, ...initial, ...normalizeAttacks(earned)].map((move) => [move.name.toLowerCase(), move])).values()];
 }
 
+// Resolve requested moves against the actual inventory, restore the required
+// guard when missing, and fill empty slots before limiting the loadout to four.
 export function equippedMovesFor(pal, inventory = moveInventoryFor(pal)) {
   const equippedSource = pal.equipped_moves || pal.equippedMoves;
   const requested = Array.isArray(equippedSource) ? equippedSource : Array.isArray(pal.attacks) && pal.attacks.length === 4 ? pal.attacks : [];
@@ -229,6 +246,7 @@ export function equippedMovesFor(pal, inventory = moveInventoryFor(pal)) {
   return equipped.slice(0, 4);
 }
 
+// Derive cosmetic unlocks from progression and achievements while retaining saved frames.
 export function framesFor(pal) {
   const stars = clampInt(pal.star_level ?? pal.starLevel, 1, 5, 1);
   const level = clampInt(pal.level, 1, 5, 1);
@@ -273,6 +291,8 @@ export function buildPortablePal(pal, { imported = false } = {}) {
   };
 }
 
+// Advance a 32-bit pseudorandom state. The same seed and sequence of calls
+// produce the same numbers; this generator is for gameplay, not security.
 function seededRandom(seed) {
   let state = seed >>> 0;
   return () => ((state = Math.imul(1664525, state) + 1013904223 >>> 0) / 4294967296);
@@ -298,6 +318,8 @@ export function simulateBattle(leftInput, rightInput, seed = crypto.randomInt(1,
     const attacker = order[turn % 2];
     const defender = fighters.find((fighter) => fighter !== attacker);
     if (attacker.hp <= 0) break;
+    // Only choose moves that are unlocked, off cooldown, and still have uses.
+    // Prefer useful actions and a heal at low health; exhausted kits get a weak fallback.
     const moves = attacker.pal.attacks.filter((move) => move.unlockLevel <= attacker.pal.level && turn + 1 >= (attacker.cooldowns[move.name] || 0) && (attacker.uses[move.name] || 0) < move.maxUses);
     const useful = moves.filter((move) => !(move.kind === 'heal' && attacker.hp >= attacker.pal.stats.health) && !(move.kind === 'block' && attacker.shield > 0) && !(move.kind === 'reflect' && attacker.reflect > 0));
     const healingMove = useful.find((move) => move.kind === 'heal');
@@ -336,6 +358,8 @@ export function simulateBattle(leftInput, rightInput, seed = crypto.randomInt(1,
       log.push({ turn: turn + 1, kind: 'attack', attacker: attacker.pal.cardId, defender: defender.pal.cardId, move: move.name, moveType: move.type, moveTier: move.tier, evaded: true, evadeChance, damage: 0, blocked: 0, reflected: 0, usesRemaining, health: Object.fromEntries(fighters.map((fighter) => [fighter.pal.cardId, fighter.hp])) });
       continue;
     }
+    // Resolve a hit in stages: defense piercing, type matchup, critical chance, and
+    // low-health finisher bonus. Apply the shield before reflection, drain, and recoil.
     const effectiveDefense = defender.pal.stats.defense * (1 - move.piercePercent / 100);
     const ratio = attacker.pal.stats.attack / Math.max(1, effectiveDefense);
     const effectiveness = typeEffectiveness(move.type || attacker.pal.type, defender.pal.type);
@@ -357,6 +381,8 @@ export function simulateBattle(leftInput, rightInput, seed = crypto.randomInt(1,
     attacker.hp = Math.max(0, attacker.hp - recoil);
     log.push({ turn: turn + 1, kind: 'attack', attacker: attacker.pal.cardId, defender: defender.pal.cardId, move: move.name, moveType: move.type, moveTier: move.tier, accuracy: move.accuracy, effectiveness, critical, evaded: false, missed: false, damage, blocked, reflected, drained, recoil, pierced: move.piercePercent, executeBoosted: executeMultiplier > 1, usesRemaining, remainingHealth: defender.hp, defenderMaxHealth: defender.pal.stats.health, health: Object.fromEntries(fighters.map((fighter) => [fighter.pal.cardId, fighter.hp])) });
   }
+  // If no knockout decides the match, compare remaining health as a percentage
+  // of each creature's maximum so larger health pools do not automatically win.
   const healthRatio = (fighter) => fighter.hp / fighter.pal.stats.health;
   let winner = fighters.find((fighter) => fighter.hp > 0 && fighters.some((other) => other.hp === 0));
   if (!winner) winner = healthRatio(fighters[0]) >= healthRatio(fighters[1]) ? fighters[0] : fighters[1];

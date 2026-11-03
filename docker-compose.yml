@@ -1,3 +1,6 @@
+# Local development services. PostgreSQL data lives in a named volume; Memcached
+# is temporary storage. SQL initialization scripts run when PostgreSQL creates a fresh database.
+
 services:
   db:
     image: postgres:16

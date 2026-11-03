@@ -1,3 +1,6 @@
+// Application shell: shared navigation and providers surround the routed screens.
+// Suspense displays a loading indicator while each page bundle is downloaded.
+
 import { Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import Header from "./components/Header.jsx";

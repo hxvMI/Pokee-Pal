@@ -1,3 +1,6 @@
+// HTTP entry point: configure middleware, connect storage, and register API routes.
+// Routes validate requests and coordinate AI, battle rules, persistence, and cache invalidation.
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -28,6 +31,8 @@ app.use(express.static(clientBuildDirectory));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: (_req, file, callback) => callback(null, ['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) });
 const PAL_TYPES = ['Normal', 'Fire', 'Water', 'Grass', 'Electric', 'Ice', 'Fighting', 'Poison', 'Ground', 'Flying', 'Psychic', 'Bug', 'Rock', 'Ghost', 'Dragon', 'Dark', 'Steel', 'Fairy'];
 
+// Check identifying file bytes as well as the MIME label supplied by the upload.
+// This is a basic signature check, not a full image decode.
 function validImageBytes(buffer, mime) {
   if (mime === 'image/png') return buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
   if (mime === 'image/jpeg') return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
@@ -47,6 +52,8 @@ try {
   process.exit(1);
 }
 
+// Reload gallery creatures from PostgreSQL instead of trusting client stats.
+// Uploaded creatures have no local record and are normalized as shared data.
 async function resolveCombatant(requestedPal) {
   if (requestedPal?.id != null) {
     const stored = await db.getById(Number(requestedPal.id));
@@ -57,6 +64,7 @@ async function resolveCombatant(requestedPal) {
   return buildPortablePal(requestedPal, { imported: true });
 }
 
+// Accumulate battle statistics and derive achievements from the resolved log.
 function achievementUpdate(pal, log, won, finalHealth) {
   const record = { wins: 0, losses: 0, damage: 0, healing: 0, blocked: 0, reflected: 0, evasions: 0, criticals: 0, ...(pal.battleRecord || {}) };
   const actions = log.filter((entry) => entry.attacker === pal.cardId);
@@ -96,6 +104,8 @@ app.get('/api/health', (_req, res) => {
 
 // Gallery reads use a short cache, while every mutation below updates or
 // invalidates that key to keep PostgreSQL authoritative.
+// Cache the gallery response to reduce repeated database reads. Mutation routes
+// remove the gallery key so a subsequent request can rebuild it.
 app.get('/api/gallery', async (_req, res) => {
   try {
     const rows = await cache.getOrSet('gallery:all', () => db.list(), 300);
@@ -245,6 +255,7 @@ app.patch('/api/pokaimon/:id/like', async (req, res) => {
   }
 });
 
+// Validate the requested name, persist the change, and invalidate gallery data.
 app.patch('/api/pokaimon/:id/name', async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -261,6 +272,7 @@ app.patch('/api/pokaimon/:id/name', async (req, res) => {
   }
 });
 
+// Remove the saved creature and clean up its stored artwork and action images.
 app.delete('/api/pokaimon/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -366,6 +378,8 @@ app.post('/api/pokaimon/:id/evolve', async (req, res) => {
   } catch (error) { console.error(error); res.status(500).json({ error: 'Failed to evolve pal' }); }
 });
 
+// Resolve four distinct requested names against server-derived unlocks.
+// An active manual session blocks loadout changes, and Cozy Guard is required.
 app.patch('/api/pokaimon/:id/moves', async (req, res) => {
   try {
     const id = Number(req.params.id); const stored = await db.getById(id);
@@ -382,6 +396,7 @@ app.patch('/api/pokaimon/:id/moves', async (req, res) => {
   } catch (error) { console.error(error); res.status(500).json({ error: 'Failed to equip moves' }); }
 });
 
+// Accept only a frame the server considers unlocked for this creature.
 app.patch('/api/pokaimon/:id/frame', async (req, res) => {
   try {
     const id = Number(req.params.id); const stored = await db.getById(id);
@@ -400,6 +415,8 @@ app.post('/api/pokaimon/import', upload.single('image'), async (req, res) => {
     if (!validImageBytes(req.file.buffer, req.file.mimetype)) return res.status(400).json({ error: 'The uploaded file contents do not match its image type' });
     const selectedTypes = type.split('/').map((item) => item.trim());
     if (selectedTypes.length > 2 || selectedTypes.some((item) => !PAL_TYPES.includes(item))) return res.status(400).json({ error: 'Choose one or two valid creature types' });
+    // Derive starting stats from the image bytes: the same upload produces the
+    // same stat values without calling an AI model.
     const seed = crypto.createHash('sha256').update(req.file.buffer).digest();
     const stats = { attack: 55 + seed[0] % 66, defense: 55 + seed[1] % 66, health: 70 + seed[2] % 51, speed: 55 + seed[3] % 66 };
     const imageUrl = saveImageBuffer(req.file.buffer, req.file.mimetype, 'imported');
@@ -420,6 +437,7 @@ app.post('/api/battles/manual', async (req, res) => {
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
+// Load a manual battle and report expired sessions separately from missing ones.
 app.get('/api/battles/:sessionId', async (req, res) => {
   const session = await db.getSession(req.params.sessionId);
   if (!session) return res.status(404).json({ error: 'Battle session not found' });
@@ -427,6 +445,8 @@ app.get('/api/battles/:sessionId', async (req, res) => {
   res.json({ sessionId: session.id, state: session.state, availableMoves: session.status === 'active' ? availableMoves(session.state, 0) : [] });
 });
 
+// Apply the selected move to stored battle state, then save the resolved round.
+// Completion also records the outcome and handles progression rewards.
 app.post('/api/battles/:sessionId/action', async (req, res) => {
   try {
     const session = await db.getSession(req.params.sessionId);
@@ -446,6 +466,7 @@ app.post('/api/battles/:sessionId/action', async (req, res) => {
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
+// Mark an abandoned session so it no longer counts as an active battle.
 app.delete('/api/battles/:sessionId', async (req, res) => {
   const session = await db.getSession(req.params.sessionId);
   if (!session) return res.status(404).json({ error: 'Battle session not found' });
@@ -458,6 +479,8 @@ app.use((error, _req, res, next) => {
   next(error);
 });
 
+// Reuse a saved action image when available; otherwise generate and persist one
+// for the requested power using the creature artwork as its reference.
 app.post('/api/pokaimon/:id/action-image', async (req, res) => {
   try {
     const id = Number(req.params.id)
@@ -503,6 +526,8 @@ app.post('/api/pokaimon/:id/action-image', async (req, res) => {
 // SPA fallback for React Router
 // Serve index.html for all routes that don't match API or static files
 // MUST be the last route, after all API routes
+// Serve the React entry document for client-side routes opened directly.
+// API paths and file requests are excluded and receive a plain 404 response.
 app.get('*', (req, res) => {
   // Don't fallback for API routes or file extensions
   if (req.path.startsWith('/api/') || req.path.includes('.')) {

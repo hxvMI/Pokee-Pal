@@ -1,3 +1,6 @@
+# Verify pushes to main and pull requests with a clean dependency installation,
+# server tests, frontend lint, and a production build using the root check script.
+
 name: CI
 
 on:

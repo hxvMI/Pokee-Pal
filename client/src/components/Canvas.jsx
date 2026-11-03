@@ -1,3 +1,6 @@
+// Capture a doodle with mouse or touch input and export its pixels for generation.
+// Refs track the canvas and active stroke without rerendering on every pointer movement.
+
 import { useEffect, useRef, useState } from "react";
 
 const COLORS = [
@@ -45,6 +48,8 @@ export default function Canvas({ onGenerate, disabled }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
+    // Convert browser coordinates into positions relative to the drawing surface.
+    // Mouse and touch input then share the same stroke logic.
     const getCoords = (e) => {
       const rect = canvas.getBoundingClientRect();
       if (e.touches && e.touches.length) {
@@ -94,6 +99,7 @@ export default function Canvas({ onGenerate, disabled }) {
     };
   }, [activeColor]);
 
+  // Paint an opaque white background so blank areas export consistently.
   const clearCanvas = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -102,6 +108,8 @@ export default function Canvas({ onGenerate, disabled }) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   };
 
+  // Export the drawing as a PNG data URL, then pass its base64 content and style
+  // to the parent workflow that handles the API request.
   const handleGenerate = async () => {
     const canvas = canvasRef.current;
     // FLUX.2 Klein reference images must be smaller than 512x512.

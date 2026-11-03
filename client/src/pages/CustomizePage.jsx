@@ -1,3 +1,6 @@
+// Edit a saved pal's frame and four-move loadout, or request evolution.
+// The UI previews choices; the API verifies unlock requirements before saving them.
+
 import { useMemo, useState } from "react";
 import { usePalGallery } from "../hooks/usePalGallery.js";
 import { exportBattleCard, normalizePortablePal } from "../utils/battleCard.js";
@@ -13,10 +16,13 @@ export default function CustomizePage() {
   const [palId, setPalId] = useState(""); const [selectedMoves, setSelectedMoves] = useState([]); const [message, setMessage] = useState("");
   const rawPal = data.find((item) => item.id === Number(palId));
   const pal = useMemo(() => rawPal ? normalizePortablePal(rawPal) : null, [rawPal]);
+  // Refresh saved creature data after each successful change so derived unlocks
+  // and progression in this screen reflect the latest server response.
   async function request(path, options) { const response = await fetch(apiUrl(path), options); const body = await response.json(); if (!response.ok) throw new Error(body.error); await refetch(); return body; }
   async function equipFrame(frame) { try { await request(`/api/pokaimon/${pal.id}/frame`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ frame }) }); setMessage("Frame equipped."); } catch (failure) { setMessage(failure.message); } }
   async function saveMoves() { try { await request(`/api/pokaimon/${pal.id}/moves`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ moves: selectedMoves }) }); setMessage("Move loadout saved."); } catch (failure) { setMessage(failure.message); } }
   async function evolve() { try { await request(`/api/pokaimon/${pal.id}/evolve`, { method: "POST" }); setMessage("Your pal evolved and gained a star!"); } catch (failure) { setMessage(failure.message); } }
+  // Stage up to four move names locally; saving performs the server validation.
   function toggleMove(name) { setSelectedMoves((current) => current.includes(name) ? current.filter((move) => move !== name) : current.length < 4 ? [...current, name] : current); }
   if (loading) return <p className="cozy-muted text-center">Loading customization workshop...</p>;
   if (error) return <p className="text-center text-red-600">Could not load pals.</p>;

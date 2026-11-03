@@ -1,3 +1,6 @@
+// Shared navigation, theme selection, and session credential controls.
+// NavLink determines the active route; contexts supply the settings used across pages.
+
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext.jsx";

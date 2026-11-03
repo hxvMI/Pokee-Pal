@@ -1,3 +1,6 @@
+// Render descriptions and numeric stats from both legacy and current creature data.
+// Direct stats take precedence over stats embedded in the older characteristics field.
+
 const STAT_LABELS = {
   attack: "Attack",
   defense: "Defense",

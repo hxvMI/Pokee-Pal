@@ -1,3 +1,6 @@
+// Browser entry point. Mount React into index.html and provide theme and routing
+// state to the application. StrictMode enables additional development checks.
+
 import React from "react";
 import { createRoot } from "react-dom/client";
 

@@ -1,3 +1,6 @@
+// Translate structured battle events into readable messages.
+// Support actions, misses, evasion, and damage modifiers each have distinct wording.
+
 function Charges({ turn }) { return turn.usesRemaining < 999 ? <span className="cozy-muted ml-1">({turn.usesRemaining} uses left)</span> : null; }
 function TurnMessage({ turn }) {
   if (turn.kind === "heal") return <>{turn.attackerName} used <strong>{turn.move}</strong> and restored <strong className="text-emerald-600">{turn.amount} HP</strong>.<Charges turn={turn} /></>;

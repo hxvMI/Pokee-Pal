@@ -1,3 +1,6 @@
+// Store image bytes on the server filesystem and return public /images/ paths.
+// Database rows hold these paths; file durability depends on the hosting environment.
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

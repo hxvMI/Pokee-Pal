@@ -1,3 +1,6 @@
+// Catch rendering errors in descendant components and show a reload option.
+// Async request failures still need to be handled by the relevant page or hook.
+
 import { Component } from "react";
 
 export default class ErrorBoundary extends Component {

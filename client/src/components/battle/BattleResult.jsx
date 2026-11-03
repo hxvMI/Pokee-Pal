@@ -1,3 +1,6 @@
+// Present the completed match, rewards, and per-combatant summary when available.
+// Export the returned winner so the downloaded card includes its updated progression.
+
 import { exportBattleCard } from "../../utils/battleCard.js";
 export default function BattleResult({ result, onRematch }) {
   return <section className="cozy-panel p-6 text-center"><p className="cozy-kicker">Winner</p><h2 className="cozy-heading mt-2 text-3xl font-black">{result.winner.name}</h2>

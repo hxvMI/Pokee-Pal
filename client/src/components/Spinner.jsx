@@ -1,3 +1,5 @@
+// Reusable loading indicator with a caller-supplied label for the current operation.
+
 export default function Spinner({ label = "Loading..." }) {
   return (
     <div className="flex flex-col items-center justify-center p-8">

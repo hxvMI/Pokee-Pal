@@ -1,3 +1,6 @@
+// Coordinate drawing submission, AI generation feedback, and the latest saved pal.
+// The canvas supplies image data; the API creates and persists the resulting creature.
+
 import { useState } from "react";
 import Canvas from "../components/Canvas.jsx";
 import Spinner from "../components/Spinner.jsx";
@@ -17,6 +20,8 @@ export default function GeneratorPage() {
   const [isRenaming, setIsRenaming] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
 
+  // Keep generation state separate from the previous result so the UI can show
+  // progress and surface API errors without discarding the last successful creature.
   const handleGenerate = async (base64, palStyle) => {
     try {
       setIsGenerating(true);
@@ -45,6 +50,7 @@ export default function GeneratorPage() {
     }
   };
 
+  // Use the returned database record to refresh the displayed name and description.
   const handleRename = async () => {
     if (!lastResult?.id) return;
     try {
